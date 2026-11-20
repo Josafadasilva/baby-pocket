@@ -369,7 +369,7 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
-const APP_VERSION = "v13";
+const APP_VERSION = "v14";
 $("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
 $("#updBtn").addEventListener("click", async () => {
   try {
@@ -727,9 +727,25 @@ $("#irFile").addEventListener("change", async (e) => {
   try { conv = IR.wavToSector(new Uint8Array(await file.arrayBuffer())); } catch (err) { return toast(err.message); }
   const i = conv.info, esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const note = i.truncated ? `O IR tem ${(i.seconds * 1000).toFixed(1)} ms e o pedal usa só os primeiros ${(IR.IR_SAMPLES / IR.IR_RATE * 1000).toFixed(1)} ms (como no CubeControl).` : "";
-  const ok = await confirmTyped("Gravar IR no Cab 8?",
-    `Arquivo: <b>${esc(file.name)}</b><br>${i.sampleRate} Hz · ${i.channels} canal(is) · pico ${i.peak.toFixed(2)}<br>${note}<br><br>Isso <b>substitui o IR atual do Cab 8</b> na memória do pedal. Um backup é guardado antes.`, "Gravar");
-  if (ok) flashIr(conv.sector, `IR "${file.name.slice(0, 30)}"`);
+  const cabOptions = [1, 2, 3, 4, 5, 6, 7, 8].map((c) => `<option value="${c}"${c === 8 ? " selected" : ""}>Cab ${c}${c === 8 ? " (atual)" : ""}</option>`).join("");
+  const done = confirmTyped("Gravar IR no Cab 8?",
+    `Arquivo: <b>${esc(file.name)}</b><br>${i.sampleRate} Hz · ${i.channels} canal(is) · pico ${i.peak.toFixed(2)}<br>${note}<br><br>
+    <b>Distância do microfone:</b> <output id="irDistOut">50%</output>
+    <input id="irDist" type="range" min="0" max="100" step="1" value="50" style="width:100%;padding:0;accent-color:var(--amber)">
+    <span style="display:flex;gap:8px;align-items:center">Copiar de <select id="irCopyFrom" style="flex:1">${cabOptions}</select><button id="irCopyBtn" type="button" class="mini">Copiar</button></span><br>
+    Isso <b>substitui o IR atual do Cab 8</b> na memória do pedal. Um backup é guardado antes.`, "Gravar");
+  $("#irDist").addEventListener("input", () => { $("#irDistOut").textContent = `${$("#irDist").value}%`; });
+  $("#irCopyBtn").addEventListener("click", async () => {
+    try {
+      const cab = Number($("#irCopyFrom").value);
+      const d = await state.link.readCabDistance(cab);
+      $("#irDist").value = String(Math.round(d * 100)); $("#irDistOut").textContent = `${$("#irDist").value}%`;
+      toast(`Distância copiada do Cab ${cab}: ${Math.round(d * 100)}%`, true);
+    } catch (err) { toast(err.message); }
+  });
+  const ok = await done;
+  const distance = Number(($("#irDist") || { value: 50 }).value) / 100;
+  if (ok) flashIr(IR.buildSector(conv.samples, distance), `IR "${file.name.slice(0, 30)}"`);
 });
 
 $("#irReadBtn").addEventListener("click", async () => {

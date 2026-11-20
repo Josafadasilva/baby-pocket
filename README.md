@@ -61,3 +61,6 @@ Grava um WAV no **Cab 8** (slot 7, endereço 0x70000), com o mesmo formato do Cu
 
 ## Tempo no Palco (v13)
 No modo Palco o *Time* do delay segue o TAP do Palco (BPM + nota) e continua o mesmo ao trocar de cena ou de slot. É temporário: ao sair do Palco, o Time de cada slot volta ao valor anterior, e os tempos guardados nas cenas não são alterados.
+
+## Ordem da cadeia e distância do microfone (v14)
+Cadeia: Amp → Mod · Delay → Reverb · IR → Master. Mod e Delay dividem o mesmo botão liga/desliga do pedal, assim como Reverb e IR. Ao carregar um IR há o controle **Distância do microfone** (0–100%, padrão 50%, o mesmo valor que o CubeControl grava no setor) e o botão **Copiar de Cab N**, que só lê essa distância de outro Cab (leitura de 4 bytes, sem gravar).

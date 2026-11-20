@@ -263,6 +263,15 @@ export class CubeLink extends EventTarget {
     return out;
   }
 
+  /** Lê só a distância do microfone (float 0..1, 4 bytes) do IR de um Cab 1–8. Somente leitura. */
+  async readCabDistance(cab) {
+    if (!Number.isInteger(cab) || cab < 1 || cab > 8) throw new Error("Cab inválido.");
+    const b = await this.readRom(IR.IR_BASE + (cab - 1) * IR.SECTOR_BYTES + 4, 4);
+    const d = new DataView(b.buffer).getFloat32(0, true);
+    if (!Number.isFinite(d)) throw new Error(`O Cab ${cab} não tem uma distância válida.`);
+    return Math.min(1, Math.max(0, d));
+  }
+
   /** Apaga o setor, grava em blocos de 128 bytes e confere lendo de volta. */
   async flashSector(sector, onProgress) {
     if (sector.length !== IR.SECTOR_BYTES) throw new Error("O setor de IR precisa ter 4096 bytes.");

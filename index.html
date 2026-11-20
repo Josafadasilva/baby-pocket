@@ -40,16 +40,9 @@
         <div class="knobs" data-params="tone,gain,type"></div>
       </article>
       <div class="wire"></div>
-      <article class="group pedal g-ir" data-section="irSection">
-        <header class="group-head"><span class="grip" aria-hidden="true"></span><span class="led" aria-hidden="true"></span><h2>IR · Reverb</h2><button class="toggle" data-toggle="irSection" type="button" aria-pressed="true" aria-label="Ligar ou desligar IR · Reverb"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg></button></header>
-        <div class="knobs" data-params="cabinet,reverb"></div>
-        <button id="irLoadBtn" class="chip irload" type="button">Carregar IR (WAV) no Cab 8</button>
-        <input id="irFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
-      </article>
-      <div class="wire"></div>
       <article class="group pedal g-delay" data-section="delaySection">
-        <header class="group-head"><span class="grip" aria-hidden="true"></span><span class="led" aria-hidden="true"></span><h2>Delay · Mod</h2><button class="toggle" data-toggle="delaySection" type="button" aria-pressed="true" aria-label="Ligar ou desligar Delay · Mod"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg></button></header>
-        <div class="knobs" data-params="mix,feedback,time,modulation"></div>
+        <header class="group-head"><span class="grip" aria-hidden="true"></span><span class="led" aria-hidden="true"></span><h2>Mod · Delay</h2><button class="toggle" data-toggle="delaySection" type="button" aria-pressed="true" aria-label="Ligar ou desligar Mod · Delay"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg></button></header>
+        <div class="knobs" data-params="modulation,mix,feedback,time"></div>
         <div class="tempo" aria-label="Tempo do delay">
           <span class="tempo-bpm"><b id="bpmVal">120</b> BPM</span>
           <div class="seg seg-sm" id="noteSeg">
@@ -60,6 +53,13 @@
           </div>
           <small id="tempoMs">—</small>
         </div>
+      </article>
+      <div class="wire"></div>
+      <article class="group pedal g-ir" data-section="irSection">
+        <header class="group-head"><span class="grip" aria-hidden="true"></span><span class="led" aria-hidden="true"></span><h2>Reverb · IR</h2><button class="toggle" data-toggle="irSection" type="button" aria-pressed="true" aria-label="Ligar ou desligar Reverb · IR"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg></button></header>
+        <div class="knobs" data-params="reverb,cabinet"></div>
+        <button id="irLoadBtn" class="chip irload" type="button">Carregar IR (WAV) no Cab 8</button>
+        <input id="irFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
       </article>
       <div class="wire"></div>
       <article class="group pedal g-vol">
