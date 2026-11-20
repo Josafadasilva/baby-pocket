@@ -58,3 +58,6 @@ Cada banco (A/B/C) tem 3 cenas guardadas na memória do app. Uma cena guarda vol
 
 ## Carregar IR (v11)
 Grava um WAV no **Cab 8** (slot 7, endereço 0x70000), com o mesmo formato do CubeControl (512 amostras a 48 kHz, float32; WAV PCM 16/24/32 ou float). Passos: backup do setor atual → apagar → gravar em blocos de 128 bytes → ler de volta e conferir → selecionar o Cab 8. Se a conferência falhar, o app restaura o backup sozinho. Os Cab 1–7 de fábrica nunca são tocados. Exige digitar CAB8 para confirmar. O conversor é testado byte a byte contra o código do CubeControl (`tests/ir.test.mjs`).
+
+## Tempo no Palco (v13)
+No modo Palco o *Time* do delay segue o TAP do Palco (BPM + nota) e continua o mesmo ao trocar de cena ou de slot. É temporário: ao sair do Palco, o Time de cada slot volta ao valor anterior, e os tempos guardados nas cenas não são alterados.

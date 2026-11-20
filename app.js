@@ -69,9 +69,22 @@ function tapBpm(taps) {
   const m = iv.length % 2 ? iv[(iv.length - 1) / 2] : (iv[iv.length / 2 - 1] + iv[iv.length / 2]) / 2;
   return clampBpm(60000 / m);
 }
+// No Palco o tempo do delay é o do TAP do Palco e vale para qualquer cena ou slot.
+// Isso é temporário: ao sair do Palco, o Time de cada slot volta ao que era.
+const inStage = () => $("#tab-stage").classList.contains("active");
+let stageTimes = null;
+const stageStep = () => msToStep(noteMs(tempo.bpm, tempo.note));
+function setTimeQuiet(slot, step) {
+  if (val("time", slot) === step) return;
+  P.setSlotValue(state.bank, slot, "time", step);
+  if (state.link.connected) state.writer.set(slot, P.PARAM.time.offset, step);
+}
+function enforceStageTempo() { if (inStage() && stageTimes) { setTimeQuiet(state.slot, stageStep()); render(); } }
+
 function applyTempo() {
   store.set("bp.bpm", tempo.bpm); store.set("bp.note", tempo.note);
-  const step = msToStep(noteMs(tempo.bpm, tempo.note));
+  const step = stageStep();
+  if (inStage() && stageTimes) { setTimeQuiet(state.slot, step); render(); return; }
   if (val("time") !== step) { pushUndo(); setParam("time", step); } else render();
 }
 function tap() {
@@ -204,6 +217,7 @@ function selectScene(n) {
     activeScene[s] = n; render();
   }
   persistScenes();
+  enforceStageTempo();
   toast(`Cena ${n + 1} · slot ${P.SLOT_NAMES[s]} (Type e IR não mudam)`, true);
 }
 
@@ -355,7 +369,7 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
-const APP_VERSION = "v12";
+const APP_VERSION = "v13";
 $("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
 $("#updBtn").addEventListener("click", async () => {
   try {
@@ -563,17 +577,21 @@ $("#tunerMode").addEventListener("click", (e) => {
 // ---------- navegação ----------
 $(".tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
+  const wasStage = inStage();
   $$(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
   $$(".tab").forEach((t) => t.classList.toggle("active", t.id === `tab-${b.dataset.tab}`));
   if (b.dataset.tab !== "tuner" && tuner.on) stopTuner();
   if (b.dataset.tab === "library") renderLibrary();
   document.body.classList.toggle("with-dock", b.dataset.tab === "editor");
   setWake(b.dataset.tab === "stage");
+  if (b.dataset.tab === "stage" && !wasStage) { stageTimes = [0, 1, 2].map((s) => val("time", s)); enforceStageTempo(); }
+  if (b.dataset.tab !== "stage" && wasStage && stageTimes) { stageTimes.forEach((t, s) => setTimeQuiet(s, t)); stageTimes = null; render(); }
   renderFine();
 });
 $$(".slot, .stage-slot").forEach((b) => b.addEventListener("click", () => {
   if (state.comparing) compare();
   state.slot = Number(b.dataset.slot); render();
+  enforceStageTempo();
 }));
 $$("[data-toggle]").forEach((b) => b.addEventListener("click", () => { if (!state.comparing) toggleSection(b.dataset.toggle); }));
 $("#undoBtn").addEventListener("click", undo);
