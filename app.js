@@ -279,6 +279,7 @@ function setStatus(text, ok) { const el = $("#status"); el.textContent = text; e
 async function afterConnect() {
   try {
     const name = await state.link.identify();
+    if (!/cube|sinco|vave/i.test(name)) { await state.link.disconnect(); throw new Error(`Dispositivo "${name}" não é um Cube Baby. Desconectado.`); }
     const bank = await state.link.readBank();
     state.bank = bank.slice(); state.saved = bank.slice();
     state.undo = []; state.redo = []; state.comparing = false;
