@@ -177,3 +177,14 @@ body:not(.with-dock) .fine { bottom: calc(60px + var(--safe-b)); }
 .stage-tap { min-height: 15vh; border-radius: 22px; border: 2px solid var(--blue); background: transparent; color: var(--blue); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .stage-tap .bpm { font-size: 2.6rem; } .stage-tap small { letter-spacing: .12em; }
 @media (min-width: 560px) { .stage-slots { grid-template-columns: repeat(3, 1fr); } .stage-slot { min-height: 30vh; } }
+
+/* cenas */
+.scenebar { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+.scene-label { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.scene-btn { width: 52px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); font-weight: 800; font-size: 1.05rem; cursor: pointer; position: relative; }
+.scene-btn.filled::after { content: ""; position: absolute; top: 6px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+.scene-btn.active { background: var(--blue); color: #08121f; border-color: transparent; }
+.scene-btn.active.filled::after { background: #08121f; }
+.scene-clear { margin-left: auto; } .scene-clear:disabled { opacity: .35; }
+.stage-scenes .scene-btn { flex: 1; height: 15vh; font-size: 2.2rem; border-radius: 18px; }
+.stage-scenes .scene-label, .stage-scenes .scene-clear { display: none; }

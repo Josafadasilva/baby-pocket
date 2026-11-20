@@ -52,3 +52,6 @@ via Chrome/Android**: comece pelos knobs ao vivo antes de salvar qualquer coisa.
 - Palco: botões grandes e tela sempre acesa. Nomes dos slots ficam só no aparelho.
 - Presets compartilháveis como arquivo (`.bpreset.json`), com validação ao importar.
 - Continua sem gravar IR na flash (risco alto).
+
+## Cenas (v10)
+Cada banco (A/B/C) tem 3 cenas guardadas na memória do app. Uma cena guarda volume, reverb, mix, feedback, time, mod, tone, gain e liga/desliga das seções. **Não guarda Type (amplificador) nem Cab (IR).** Ao escolher uma cena, os valores vão ao pedal na RAM; "Salvar" continua sendo o único passo que grava na flash.

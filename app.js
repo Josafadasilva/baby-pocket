@@ -167,11 +167,58 @@ function attachKnobGestures(knob, id) {
 const snapshot = () => state.bank.slice();
 function pushUndo() { state.undo.push(snapshot()); if (state.undo.length > 100) state.undo.shift(); state.redo = []; }
 
+// ---------- cenas ----------
+// Cada banco (A/B/C) tem 3 cenas. Uma cena guarda só os valores dos efeitos/ajustes:
+// NÃO guarda Type (amplificador) nem Cab (IR), que continuam os do banco.
+const SCENE_IDS = ["volume", "reverb", "mix", "feedback", "time", "modulation", "tone", "gain", "irSection", "delaySection", "toneSection"];
+const SCENE_COUNT = 3;
+const emptyScenes = () => [0, 1, 2].map(() => Array(SCENE_COUNT).fill(null));
+let scenes = store.get("bp.scenes", null);
+if (!Array.isArray(scenes) || scenes.length !== 3 || !scenes.every((r) => Array.isArray(r) && r.length === SCENE_COUNT)) scenes = emptyScenes();
+let activeScene = store.get("bp.activeScene", [null, null, null]);
+if (!Array.isArray(activeScene) || activeScene.length !== 3) activeScene = [null, null, null];
+let persistTimer;
+const persistScenes = () => { clearTimeout(persistTimer); persistTimer = setTimeout(() => { store.set("bp.scenes", scenes); store.set("bp.activeScene", activeScene); }, 300); };
+const sceneValues = (slot) => Object.fromEntries(SCENE_IDS.map((id) => [id, val(id, slot)]));
+
+/** Mantém a cena ativa do slot igual ao que está na tela (chamada após edições). */
+function captureScene(slot = state.slot) {
+  const n = activeScene[slot];
+  if (n === null || state.comparing) return;
+  scenes[slot][n] = sceneValues(slot);
+  persistScenes();
+}
+
+function selectScene(n) {
+  if (state.comparing) return;
+  const s = state.slot;
+  if (activeScene[s] === n) return;
+  state.undo = []; state.redo = []; // trocar de cena é navegação: não entra no desfazer
+  if (scenes[s][n]) {
+    const next = state.bank.slice();
+    for (const id of SCENE_IDS) P.setSlotValue(next, s, id, scenes[s][n][id]);
+    activeScene[s] = n; applyBank(next);
+  } else {
+    scenes[s][n] = sceneValues(s); // cena nova começa igual ao som atual
+    activeScene[s] = n; render();
+  }
+  persistScenes();
+  toast(`Cena ${n + 1} do slot ${P.SLOT_NAMES[s]}. Type e IR não mudam; o que você ajustar fica guardado nela.`, true);
+}
+
+function clearScene() {
+  const s = state.slot, n = activeScene[s];
+  if (n === null) return toast("Nenhuma cena ativa neste slot.");
+  scenes[s][n] = null; activeScene[s] = null; persistScenes(); render();
+  toast(`Cena ${n + 1} apagada. O som atual continua como está.`, true);
+}
+
 function setParam(id, value, slot = state.slot) {
   const v = P.clampParam(id, value);
   if (val(id, slot) === v) return;
   P.setSlotValue(state.bank, slot, id, v);
   if (state.link.connected) state.writer.set(slot, P.PARAM[id].offset, v);
+  if (SCENE_IDS.includes(id)) captureScene(slot);
   render();
 }
 
@@ -187,8 +234,8 @@ function applyBank(next) {
   render();
 }
 
-function undo() { if (!state.undo.length || state.comparing) return; state.redo.push(snapshot()); applyBank(state.undo.pop()); }
-function redo() { if (!state.redo.length || state.comparing) return; state.undo.push(snapshot()); applyBank(state.redo.pop()); }
+function undo() { if (!state.undo.length || state.comparing) return; state.redo.push(snapshot()); applyBank(state.undo.pop()); captureScene(); }
+function redo() { if (!state.redo.length || state.comparing) return; state.undo.push(snapshot()); applyBank(state.redo.pop()); captureScene(); }
 
 function toggleSection(id) { pushUndo(); setParam(id, 1 - val(id)); }
 
@@ -263,6 +310,12 @@ function render() {
   $("#bpmVal").textContent = String(tempo.bpm);
   $$("#noteSeg button").forEach((b) => b.classList.toggle("on", b.dataset.note === tempo.note));
   $("#tempoMs").textContent = `${Math.round(noteMs(tempo.bpm, tempo.note))} ms → time ${msToStep(noteMs(tempo.bpm, tempo.note))}`;
+  $$(".scene-btn").forEach((b) => {
+    const n = Number(b.dataset.scene);
+    b.classList.toggle("active", activeScene[s] === n);
+    b.classList.toggle("filled", Boolean(scenes[s][n]));
+  });
+  $$(".scene-clear").forEach((b) => { b.disabled = activeScene[s] === null; });
   $("#saveBtn").textContent = `Salvar ${P.SLOT_NAMES[s]}`;
   $("#libSave").textContent = `Salvar timbre do slot ${P.SLOT_NAMES[s]}`;
   $("#undoBtn").disabled = !state.undo.length || state.comparing;
@@ -282,7 +335,7 @@ async function afterConnect() {
     if (!/cube|sinco|vave/i.test(name)) { await state.link.disconnect(); throw new Error(`Dispositivo "${name}" não é um Cube Baby. Desconectado.`); }
     const bank = await state.link.readBank();
     state.bank = bank.slice(); state.saved = bank.slice();
-    state.undo = []; state.redo = []; state.comparing = false;
+    state.undo = []; state.redo = []; state.comparing = false; activeScene = [null, null, null]; persistScenes();
     setStatus(`${name} · banco lido`, true);
     $("#connectBtn").textContent = "Desconectar";
     toast("Pedal conectado. Banco A/B/C carregado.", true);
@@ -301,7 +354,7 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
-const APP_VERSION = "v9";
+const APP_VERSION = "v10";
 $("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
 $("#updBtn").addEventListener("click", async () => {
   try {
@@ -535,6 +588,9 @@ fine.addEventListener("input", () => setParam(state.selected, Number(fine.value)
 ["pointerup", "change", "blur"].forEach((ev) => fine.addEventListener(ev, () => { fineOpen = false; }));
 $("#fineMinus").addEventListener("click", () => { pushUndo(); setParam(state.selected, val(state.selected) - 1); });
 $("#finePlus").addEventListener("click", () => { pushUndo(); setParam(state.selected, val(state.selected) + 1); });
+
+$$(".scene-btn").forEach((b) => b.addEventListener("click", () => selectScene(Number(b.dataset.scene))));
+$$(".scene-clear").forEach((b) => b.addEventListener("click", clearScene));
 
 // ---------- tempo / TAP ----------
 $("#tapBtn").addEventListener("click", tap);
