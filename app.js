@@ -301,6 +301,16 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
+$("#diagBtn").addEventListener("click", async () => {
+  const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  let body = `Navegador: ${esc(navigator.userAgent)}<br>Web MIDI: ${"requestMIDIAccess" in navigator ? "sim" : "NÃO"} · Web Bluetooth: ${"bluetooth" in navigator ? "sim" : "NÃO"}<br><br>`;
+  try {
+    const acc = await navigator.requestMIDIAccess({ sysex: true });
+    const fmt = (m) => [...m.values()].map((p) => `• ${esc(p.name)} (${esc(p.manufacturer || "?")}, ${p.state})`).join("<br>") || "nenhuma";
+    body += `<b>Entradas MIDI:</b><br>${fmt(acc.inputs)}<br><br><b>Saídas MIDI:</b><br>${fmt(acc.outputs)}`;
+  } catch (e) { body += `<b>Falha ao pedir MIDI:</b> ${esc(e.name)} – ${esc(e.message)}`; }
+  openDialog("Diagnóstico MIDI", body, [{ label: "Fechar", primary: true }]);
+});
 $("#bleBtn").addEventListener("click", async () => {
   if (state.link.connected) return toast("Desconecte primeiro (botão no topo).");
   try { await state.link.connectBle(); await afterConnect(); } catch (e) { if (e.name !== "NotFoundError") toast(e.message); }
