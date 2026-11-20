@@ -301,6 +301,16 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
+const APP_VERSION = "v9";
+$("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
+$("#updBtn").addEventListener("click", async () => {
+  try {
+    for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    for (const k of await caches.keys()) await caches.delete(k);
+    await Promise.all(["index.html", "app.js", "midi.js", "blemidi.js", "protocol.js", "pitch.js", "style.css", "sw.js"].map((f) => fetch(f, { cache: "reload" })));
+  } catch { /* segue para recarregar */ }
+  location.reload();
+});
 $("#diagBtn").addEventListener("click", async () => {
   const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   let body = `Navegador: ${esc(navigator.userAgent)}<br>Web MIDI: ${"requestMIDIAccess" in navigator ? "sim" : "NÃO"} · Web Bluetooth: ${"bluetooth" in navigator ? "sim" : "NÃO"}<br><br>`;
