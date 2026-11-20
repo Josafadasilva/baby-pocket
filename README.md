@@ -55,3 +55,6 @@ via Chrome/Android**: comece pelos knobs ao vivo antes de salvar qualquer coisa.
 
 ## Cenas (v10)
 Cada banco (A/B/C) tem 3 cenas guardadas na memória do app. Uma cena guarda volume, reverb, mix, feedback, time, mod, tone, gain e liga/desliga das seções. **Não guarda Type (amplificador) nem Cab (IR).** Ao escolher uma cena, os valores vão ao pedal na RAM; "Salvar" continua sendo o único passo que grava na flash.
+
+## Carregar IR (v11)
+Grava um WAV no **Cab 8** (slot 7, endereço 0x70000), com o mesmo formato do CubeControl (512 amostras a 48 kHz, float32; WAV PCM 16/24/32 ou float). Passos: backup do setor atual → apagar → gravar em blocos de 128 bytes → ler de volta e conferir → selecionar o Cab 8. Se a conferência falhar, o app restaura o backup sozinho. Os Cab 1–7 de fábrica nunca são tocados. Exige digitar CAB8 para confirmar. O conversor é testado byte a byte contra o código do CubeControl (`tests/ir.test.mjs`).

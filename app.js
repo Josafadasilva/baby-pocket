@@ -2,6 +2,7 @@
 import * as P from "./protocol.js";
 import { CubeLink, LiveWriter } from "./midi.js";
 import { detectPitch } from "./pitch.js";
+import * as IR from "./ir.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -354,13 +355,13 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
-const APP_VERSION = "v10";
+const APP_VERSION = "v11";
 $("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
 $("#updBtn").addEventListener("click", async () => {
   try {
     for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
     for (const k of await caches.keys()) await caches.delete(k);
-    await Promise.all(["index.html", "app.js", "midi.js", "blemidi.js", "protocol.js", "pitch.js", "style.css", "sw.js"].map((f) => fetch(f, { cache: "reload" })));
+    await Promise.all(["index.html", "app.js", "midi.js", "blemidi.js", "ir.js", "protocol.js", "pitch.js", "style.css", "sw.js"].map((f) => fetch(f, { cache: "reload" })));
   } catch { /* segue para recarregar */ }
   location.reload();
 });
@@ -649,9 +650,107 @@ $("#libFile").addEventListener("change", async (e) => {
   try { const t = parseTone(JSON.parse(await file.text())); store.set("bp.tones", [...tones(), t]); renderLibrary(); toast(`“${t.name}” importado.`, true); } catch (err) { toast(err.message); }
 });
 
+// ---------- carregar IR (Cab 8) ----------
+const irBackups = () => store.get("bp.irBackups", []);
+function addIrBackup(sector, note) {
+  store.set("bp.irBackups", [{ t: new Date().toISOString(), note, hex: toHex(sector) }, ...irBackups()].slice(0, 3));
+  renderIrBackups();
+}
+function progressDialog(title) {
+  openDialog(title, '<div id="progText"></div><progress id="progBar" max="100" value="0"></progress>', []);
+  return {
+    set(text, pct) { $("#progText").textContent = text; if (pct !== undefined) $("#progBar").value = pct; },
+    done(html) { openDialog(title, html, [{ label: "Fechar", primary: true }]); },
+  };
+}
+
+async function flashIr(sector, label) {
+  if (!state.link.connected) return toast("Conecte o pedal primeiro.");
+  if (state.busy) return;
+  state.busy = true;
+  const dlg = progressDialog("Gravando IR no Cab 8");
+  let backup = null, flashStarted = false;
+  try {
+    dlg.set("1/3 · Guardando o IR atual como backup…", 0);
+    backup = await state.link.readRom(IR.UPLOAD_ADDRESS, IR.SECTOR_BYTES, (p) => dlg.set("1/3 · Guardando o IR atual como backup…", p * 100));
+    addIrBackup(backup, `antes de ${label}`);
+    flashStarted = true;
+    dlg.set("2/3 · Apagando e gravando… não desligue o pedal nem o cabo.", 0);
+    const r = await state.link.flashSector(sector, (p) => dlg.set("2/3 · Apagando e gravando… não desligue o pedal nem o cabo.", p * 100));
+    if (!r.verified) throw new Error("A conferência não bateu com o que foi gravado.");
+    dlg.set("3/3 · Selecionando o Cab 8…", 100);
+    await state.link.selectUploadCabinet(state.slot);
+    P.setSlotValue(state.bank, state.slot, "cabinet", 8);
+    let match = null; try { match = await state.link.liveIrMatch(sector); } catch { /* informativo */ }
+    render();
+    dlg.done(`<b>IR gravado e conferido</b> (4096 de 4096 bytes). Cab 8 ativo no slot ${P.SLOT_NAMES[state.slot]}.${match === null ? "" : `<br>Leitura ao vivo: ${match}/68 bytes iguais.`}<br><br>Para manter o Cab 8 neste preset, toque em <b>Salvar</b>.`);
+  } catch (e) {
+    let restored = flashStarted ? "…" : "não foi necessária (nada foi apagado)";
+    if (flashStarted && backup) {
+      try { dlg.set("Algo falhou. Restaurando o IR anterior…", 0); const r = await state.link.flashSector(backup); restored = r.verified ? "IR anterior restaurado e conferido" : "a restauração NÃO conferiu"; }
+      catch (e2) { restored = `a restauração falhou (${e2.message})`; }
+    }
+    dlg.done(`<b>Falhou:</b> ${e.message}<br><br>${restored}.<br>O backup continua guardado em Ajustes → IR no Cab 8.`);
+  } finally { state.busy = false; }
+}
+
+const confirmTyped = (title, bodyHtml, okLabel) => new Promise((resolve) => {
+  openDialog(title, `${bodyHtml}<br><br>Digite <b>CAB8</b> para confirmar:<input id="typed" type="text" autocomplete="off" autocapitalize="characters">`, [
+    { label: "Cancelar", onClick: () => resolve(false) },
+    { label: okLabel, primary: true, onClick: () => { if ($("#typed").value.trim().toUpperCase() !== "CAB8") { toast("Digite CAB8 para confirmar."); return false; } resolve(true); } },
+  ]);
+});
+
+$("#irLoadBtn").addEventListener("click", () => { if (!state.link.connected) return toast("Conecte o pedal primeiro."); $("#irFile").click(); });
+$("#irFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  let conv;
+  try { conv = IR.wavToSector(new Uint8Array(await file.arrayBuffer())); } catch (err) { return toast(err.message); }
+  const i = conv.info, esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const note = i.truncated ? `O IR tem ${(i.seconds * 1000).toFixed(1)} ms e o pedal usa só os primeiros ${(IR.IR_SAMPLES / IR.IR_RATE * 1000).toFixed(1)} ms (como no CubeControl).` : "";
+  const ok = await confirmTyped("Gravar IR no Cab 8?",
+    `Arquivo: <b>${esc(file.name)}</b><br>${i.sampleRate} Hz · ${i.channels} canal(is) · pico ${i.peak.toFixed(2)}<br>${note}<br><br>Isso <b>substitui o IR atual do Cab 8</b> na memória do pedal. Um backup é guardado antes.`, "Gravar");
+  if (ok) flashIr(conv.sector, `IR "${file.name.slice(0, 30)}"`);
+});
+
+$("#irReadBtn").addEventListener("click", async () => {
+  if (!state.link.connected) return toast("Conecte o pedal primeiro.");
+  if (state.busy) return;
+  state.busy = true;
+  const dlg = progressDialog("Lendo o IR do Cab 8");
+  try {
+    const sector = await state.link.readRom(IR.UPLOAD_ADDRESS, IR.SECTOR_BYTES, (p) => dlg.set("Lendo (só leitura, nada é gravado)…", p * 100));
+    addIrBackup(sector, "leitura manual");
+    dlg.done("Leitura concluída e guardada em <b>IR no Cab 8</b>. Nada foi alterado no pedal.");
+  } catch (e) { dlg.done(`<b>Falhou:</b> ${e.message}<br>Nada foi alterado no pedal.`); }
+  finally { state.busy = false; }
+});
+
+function renderIrBackups() {
+  const ul = $("#irBackupList"); ul.innerHTML = "";
+  const list = irBackups();
+  if (!list.length) { ul.innerHTML = '<li class="empty">Nenhum backup de IR ainda.</li>'; return; }
+  list.forEach((b) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<div><span class="name"></span><small></small></div><div class="acts"><button class="mini dl" type="button">Baixar</button><button class="mini rs" type="button">Restaurar</button></div>';
+    $(".name", li).textContent = b.note; $("small", li).textContent = new Date(b.t).toLocaleString("pt-BR");
+    $(".dl", li).addEventListener("click", () => {
+      const url = URL.createObjectURL(new Blob([fromHex(b.hex)], { type: "application/octet-stream" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `cab8-backup-${b.t.slice(0, 16).replace(/[:T]/g, "")}.bin` });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+    $(".rs", li).addEventListener("click", async () => {
+      if (!state.link.connected) return toast("Conecte o pedal primeiro.");
+      if (await confirmTyped("Restaurar este IR no Cab 8?", "O IR atual do Cab 8 será substituído pelo do backup (e também guardado antes).", "Restaurar")) flashIr(fromHex(b.hex), "restaurar backup");
+    });
+    ul.append(li);
+  });
+}
+
 // ---------- início ----------
 document.body.classList.add("with-dock");
-buildKnobs(); render(); renderBackups();
+buildKnobs(); render(); renderBackups(); renderIrBackups();
 if (!CubeLink.supported()) setStatus("Web MIDI indisponível: abra no Chrome do Android");
 if (!store.get("bp.accepted", false)) {
   openDialog("Antes de começar", "Baby Pocket é <b>não oficial</b>, sem garantia. Knobs ao vivo e afinador são seguros. <b>Salvar</b> sobrescreve presets do pedal (um backup é guardado antes). Esta versão não grava IR na flash.",

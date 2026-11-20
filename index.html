@@ -48,6 +48,8 @@
     <div class="group g-ir" data-section="irSection">
       <div class="group-head"><h2>IR · Reverb</h2><button class="toggle" data-toggle="irSection" type="button" aria-pressed="true">ON</button></div>
       <div class="knobs" data-params="cabinet,reverb"></div>
+      <button id="irLoadBtn" class="chip irload" type="button">Carregar IR (WAV) no Cab 8</button>
+      <input id="irFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
     </div>
     <div class="group g-delay" data-section="delaySection">
       <div class="group-head"><h2>Delay · Mod</h2><button class="toggle" data-toggle="delaySection" type="button" aria-pressed="true">ON</button></div>
@@ -141,6 +143,12 @@
       <h2>Backups automáticos</h2>
       <p class="muted">Guardados neste aparelho antes de cada gravação no pedal.</p>
       <ul id="backupList" class="list"></ul>
+    </div>
+    <div class="panel">
+      <h2>IR no Cab 8</h2>
+      <p class="muted">Só o <b>Cab 8</b> é gravado (os Cab 1–7 de fábrica nunca são tocados). Antes de cada gravação o app guarda o IR atual como backup e depois confere o que gravou.</p>
+      <button id="irReadBtn" class="chip wide" type="button">Só ler e guardar o IR atual (não grava nada)</button>
+      <ul id="irBackupList" class="list"></ul>
     </div>
     <div class="panel safety">
       <h2>Segurança</h2>

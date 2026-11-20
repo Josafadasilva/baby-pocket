@@ -98,6 +98,10 @@ export function encodeMemoryRead(memory, address, length) {
   return envelope(MSG.READ, [memory, ...u32(address), ...u24(length)]);
 }
 
+export function encodeMemoryErase(memory, address) {
+  return envelope(MSG.ERASE, [memory, ...u32(address)]);
+}
+
 export function encodeMemoryWrite(memory, address, data) {
   if (data.length < 1) throw new Error("dados vazios");
   return envelope(MSG.WRITE, [memory, ...u32(address), ...u24(data.length), ...data]);
@@ -147,6 +151,7 @@ export function decodeMessage(sysex) {
     }
     return { ...base, kind: "write-request", memory, address, length, data };
   }
+  if (type === MSG.ERASE && content.length === 5) return { ...base, kind: "erase-request", memory: content[0], address: r32(content, 1) };
   return { ...base, kind: "unknown" };
 }
 

@@ -1,5 +1,6 @@
 // midi.js — ligação com o pedal via Web MIDI (Chrome no Android, cabo USB-OTG) + pedal de demonstração.
 import * as P from "./protocol.js";
+import * as IR from "./ir.js";
 import { BLE_MIDI_SERVICE, BLE_MIDI_CHAR, packBle, BleUnpacker } from "./blemidi.js";
 
 const TIMEOUT_MS = 1500;
@@ -15,6 +16,12 @@ export class DemoPedal {
       7, 5, 12, 2, 60, 100, 20, 80, 3, 6, 1, 0, 1, 0, 0, 0,
     ]);
     this.live = this.bank.slice();
+    this.rom = new Uint8Array(0x72000).fill(0xff);       // memória 0 (flash dos IRs)
+    this.rom.fill(0, IR.UPLOAD_ADDRESS, IR.UPLOAD_ADDRESS + IR.SECTOR_BYTES);
+    this.rom.set(Uint8Array.of(0, 0, 0, 0, 0, 0, 0, 0x3f, 1, 2, 3), IR.UPLOAD_ADDRESS); // IR "antigo"
+    this.irLive = new Uint8Array(68);
+    this.failWriteAfter = null;                          // teste: falha na N-ésima escrita de ROM
+    this.romWrites = 0;
     this.listener = null;
   }
   onMessage(fn) { this.listener = fn; }
@@ -24,12 +31,32 @@ export class DemoPedal {
     await sleep(15);
     const reply = (u8) => this.listener && this.listener(u8);
     if (m.kind === "identity-request") reply(P.encodeIdentityResponse(this.name));
-    else if (m.kind === "read-request") {
+    else if (m.kind === "erase-request" && m.memory === 0) {
+      const base = m.address - (m.address % IR.SECTOR_BYTES);
+      this.rom.fill(0xff, base, base + IR.SECTOR_BYTES);
+      reply(P.encodeAck(true));
+    } else if (m.kind === "read-request" && m.memory === 0) {
+      reply(P.encodeReadResponse(0, m.address, this.rom.slice(m.address, m.address + m.length)));
+    } else if (m.kind === "read-request" && m.memory === 4) {
+      reply(P.encodeReadResponse(4, m.address, this.irLive.slice(0, m.length)));
+    } else if (m.kind === "write-request" && m.memory === 0) {
+      this.romWrites++;
+      if (this.failWriteAfter !== null && this.romWrites > this.failWriteAfter) { this.failWriteAfter = null; reply(P.encodeAck(false)); return; } // perde esta escrita (falha única)
+      this.rom.set(m.data, m.address);
+      reply(P.encodeAck(true));
+    } else if (m.kind === "read-request") {
       const src = m.address >= P.LIVE_BASE ? this.live : this.bank;
       const start = m.address >= P.LIVE_BASE ? m.address - P.LIVE_BASE : m.address;
       reply(P.encodeReadResponse(m.memory, m.address, src.slice(start, start + m.length)));
     } else if (m.kind === "write-request") {
-      if (m.address >= P.LIVE_BASE) this.live.set(m.data, m.address - P.LIVE_BASE);
+      if (m.address >= P.LIVE_BASE) {
+        this.live.set(m.data, m.address - P.LIVE_BASE);
+        const off = m.address - P.LIVE_BASE;
+        if (off % 16 === 9 && m.data[0] >= 1) { // trocou de cabinet: recarrega o IR "ao vivo"
+          const a = IR.IR_BASE + (m.data[0] - 1) * IR.SECTOR_BYTES;
+          this.irLive = this.rom.slice(a + 4, a + 72);
+        }
+      }
       else this.bank.set(m.data, m.address);
       reply(P.encodeAck(false)); // o pedal real costuma responder "não aceito" a escritas live
     }
@@ -219,6 +246,50 @@ export class CubeLink extends EventTarget {
       );
       await sleep(40);
     }
+  }
+
+  // ---------- IR (flash, memória 0). Só o setor do slot de upload (Cab 8) é gravado. ----------
+  async readRom(address, length, onProgress) {
+    const out = new Uint8Array(length);
+    for (let o = 0; o < length; o += IR.READ_CHUNK) {
+      const n = Math.min(IR.READ_CHUNK, length - o);
+      const m = await this.exchange(P.encodeMemoryRead(IR.ROM_MEMORY, address + o, n),
+        (r) => r.kind === "read-response" && r.address === address + o && r.data.length === n);
+      if (!m.checksumOk) throw new Error("Resposta do pedal com checksum inválido.");
+      out.set(m.data, o);
+      onProgress?.(Math.min(1, (o + n) / length));
+      await sleep(40);
+    }
+    return out;
+  }
+
+  /** Apaga o setor, grava em blocos de 128 bytes e confere lendo de volta. */
+  async flashSector(sector, onProgress) {
+    if (sector.length !== IR.SECTOR_BYTES) throw new Error("O setor de IR precisa ter 4096 bytes.");
+    const address = IR.UPLOAD_ADDRESS; // endereço fixo: este app nunca grava em outro slot
+    await this.exchange(P.encodeMemoryErase(IR.ROM_MEMORY, address), (m) => m.kind === "ack", 4000);
+    await sleep(250);
+    for (let o = 0; o < sector.length; o += IR.WRITE_CHUNK) {
+      await this.exchange(P.encodeMemoryWrite(IR.ROM_MEMORY, address + o, sector.subarray(o, o + IR.WRITE_CHUNK)), (m) => m.kind === "ack", 3000);
+      onProgress?.(Math.min(1, (o + IR.WRITE_CHUNK) / sector.length));
+      await sleep(40);
+    }
+    await sleep(250);
+    const after = await this.readRom(address, sector.length);
+    return { verified: after.every((b, i) => b === sector[i]), after };
+  }
+
+  /** Seleciona o Cab 8 ao vivo (passa por outro valor antes, para o IR recarregar). */
+  async selectUploadCabinet(slot) {
+    await this.writeLive(slot, P.PARAM.cabinet.offset, 1); await sleep(350);
+    await this.writeLive(slot, P.PARAM.cabinet.offset, 8); await sleep(350);
+  }
+
+  async liveIrMatch(sector) {
+    const m = await this.exchange(P.encodeMemoryRead(4, 1896, 68), (r) => r.kind === "read-response" && r.address === 1896 && r.data.length === 68);
+    const expected = sector.subarray(4, 72);
+    let same = 0; for (let i = 0; i < 68; i++) if (m.data[i] === expected[i]) same++;
+    return same;
   }
 
   /** Grava o banco inteiro (48 bytes) e confere lendo de volta. */

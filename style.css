@@ -188,3 +188,6 @@ body:not(.with-dock) .fine { bottom: calc(60px + var(--safe-b)); }
 .scene-clear { margin-left: auto; } .scene-clear:disabled { opacity: .35; }
 .stage-scenes .scene-btn { flex: 1; height: 15vh; font-size: 2.2rem; border-radius: 18px; }
 .stage-scenes .scene-label, .stage-scenes .scene-clear { display: none; }
+
+.irload { width: calc(100% - 8px); margin: 0 4px 10px; min-height: 40px; font-size: .78rem; border-color: var(--teal); color: var(--teal); }
+progress { width: 100%; height: 10px; accent-color: var(--amber); margin-top: 10px; }

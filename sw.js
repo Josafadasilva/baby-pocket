@@ -1,6 +1,6 @@
 // Cache simples: o app abre mesmo sem internet (útil no palco).
-const CACHE = "baby-pocket-v10";
-const FILES = ["./", "index.html", "style.css", "app.js", "midi.js", "blemidi.js", "pitch.js", "protocol.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "baby-pocket-v11";
+const FILES = ["./", "index.html", "style.css", "app.js", "midi.js", "blemidi.js", "ir.js", "pitch.js", "protocol.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", (e) => {
