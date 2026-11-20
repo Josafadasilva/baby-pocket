@@ -204,7 +204,7 @@ function selectScene(n) {
     activeScene[s] = n; render();
   }
   persistScenes();
-  toast(`Cena ${n + 1} do slot ${P.SLOT_NAMES[s]}. Type e IR não mudam; o que você ajustar fica guardado nela.`, true);
+  toast(`Cena ${n + 1} · slot ${P.SLOT_NAMES[s]} (Type e IR não mudam)`, true);
 }
 
 function clearScene() {
@@ -294,7 +294,7 @@ function render() {
   for (const g of $$(".group[data-section]")) {
     const on = val(g.dataset.section) === 1;
     g.classList.toggle("off", !on);
-    const t = $(".toggle", g); t.setAttribute("aria-pressed", String(on)); t.textContent = on ? "ON" : "OFF";
+    const t = $(".toggle", g); if (t) t.setAttribute("aria-pressed", String(on));
   }
   for (const b of $$(".slot")) {
     const i = Number(b.dataset.slot);
@@ -355,7 +355,7 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
-const APP_VERSION = "v11";
+const APP_VERSION = "v12";
 $("#verInfo").textContent = `Versão do app: ${APP_VERSION}`;
 $("#updBtn").addEventListener("click", async () => {
   try {

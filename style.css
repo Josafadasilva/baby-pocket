@@ -191,3 +191,53 @@ body:not(.with-dock) .fine { bottom: calc(60px + var(--safe-b)); }
 
 .irload { width: calc(100% - 8px); margin: 0 4px 10px; min-height: 40px; font-size: .78rem; border-color: var(--teal); color: var(--teal); }
 progress { width: 100%; height: 10px; accent-color: var(--amber); margin-top: 10px; }
+
+/* ================= v12: cadeia de pedais ================= */
+:root { --dock-h: 118px; }
+body.with-dock { padding-bottom: calc(60px + var(--dock-h) + 20px + var(--safe-b)); }
+body.with-dock.has-fine { padding-bottom: calc(60px + var(--dock-h) + 84px + var(--safe-b)); }
+body.with-dock .fine { bottom: calc(60px + var(--dock-h) + var(--safe-b)); }
+
+.chain { display: flex; flex-direction: column; align-items: stretch; padding-top: 4px; }
+.io { align-self: center; font-size: .66rem; font-weight: 800; letter-spacing: .3em; color: var(--muted); padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.wire { align-self: center; width: 2px; height: 16px; background: linear-gradient(var(--line), #3b4352); position: relative; }
+.wire::after { content: ""; position: absolute; left: -3px; bottom: -2px; border: 4px solid transparent; border-top: 6px solid #3b4352; border-bottom: 0; }
+
+.pedal { margin: 0; padding: 0; border: 1px solid color-mix(in srgb, var(--c) 45%, var(--line)); border-top-width: 1px; border-radius: 18px; overflow: hidden; position: relative;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 7%, #14171d), #12151a 70%); box-shadow: 0 6px 18px #0006, inset 0 1px 0 #ffffff0d; }
+.pedal .group-head { margin: 0; padding: 8px 10px 8px 8px; display: flex; align-items: center; gap: 10px; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 88%, #fff 8%), color-mix(in srgb, var(--c) 72%, #000)); color: #0c0f14; }
+.pedal .group-head h2 { flex: 1; margin: 0; font-size: .95rem; letter-spacing: .1em; color: #0c0f14; text-transform: uppercase; font-weight: 800; }
+.pedal .group-head h2::before { display: none; }
+.grip { width: 14px; height: 22px; flex: none; opacity: .55; background: radial-gradient(circle, #0c0f14 1.4px, transparent 1.8px) 0 0 / 7px 7px; }
+.led { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #ff4b4b; box-shadow: 0 0 0 2px #0003, 0 0 9px #ff4b4b; }
+.pedal.off .led { background: #3a2222; box-shadow: 0 0 0 2px #0003; }
+.pedal.off { opacity: 1; filter: none; }
+.pedal.off .knobs, .pedal.off .tempo, .pedal.off .irload { opacity: .38; filter: saturate(.2); }
+.pedal.off .group-head { background: linear-gradient(180deg, #353b47, #2a2f39); }
+.pedal .toggle { width: 46px; height: 46px; min-width: 46px; border-radius: 50%; padding: 0; display: grid; place-items: center; background: #0c0f14; color: var(--c); border: 2px solid #0c0f14; box-shadow: 0 2px 0 #0005, inset 0 0 0 2px color-mix(in srgb, var(--c) 40%, #0c0f14); }
+.pedal .toggle svg { width: 22px; height: 22px; }
+.pedal .toggle[aria-pressed="false"] { color: #7c8594; background: #1a1e25; box-shadow: 0 2px 0 #0005; }
+.pedal .knobs { padding: 12px 8px 4px; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
+.pedal .tempo { padding: 0 14px 12px; }
+.pedal .irload { margin: 4px 12px 12px; width: calc(100% - 24px); }
+.g-tone { --c: #ff9d4d; } .g-ir { --c: #46d6b0; } .g-delay { --c: #5aa9ff; } .g-vol { --c: #c9ced8; }
+.g-vol .group-head h2 { letter-spacing: .14em; }
+
+/* rodapé de cenas */
+.dock { flex-direction: column; gap: 8px; padding: 8px 12px calc(8px); height: auto; grid-template-columns: none; }
+body.with-dock .dock { display: flex; }
+.dock-top { display: flex; align-items: center; gap: 10px; }
+.dock .scenes { flex: 1; gap: 6px; }
+.dock .slot { height: 38px; flex-direction: row; gap: 6px; border-radius: 12px; }
+.dock .slot .L { font-size: 1.05rem; }
+.dock .slot .nm { margin: 0; max-width: 60px; }
+.dock .dirty { top: 6px; right: 8px; width: 7px; height: 7px; }
+.dock-main { display: grid; grid-template-columns: 1fr 74px 62px; gap: 8px; height: 56px; }
+.dock .scenebar { margin: 0; gap: 6px; }
+.dock .scene-btn { flex: 1; width: auto; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; font-size: 1.25rem; border-radius: 14px; }
+.scene-btn small { font-size: .52rem; letter-spacing: .16em; font-weight: 700; opacity: .75; }
+.dock .scene-label { display: none; }
+.dock-top .scene-clear { flex: none; }
+.dock .savebtn, .dock .tap { height: 56px; }
+.stage-scenes .scene-btn { flex-direction: column; }
+body.with-dock .toast { bottom: calc(60px + var(--dock-h) + 12px + var(--safe-b)); max-width: 86vw; text-align: center; }
