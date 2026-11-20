@@ -97,7 +97,8 @@ export class CubeLink extends EventTarget {
     this.access.onstatechange = () => this.#refresh();
     await this.#refresh(true);
     if (!this.input || !this.output) {
-      throw new Error("Pedal não encontrado. Ligue o cabo USB (OTG), feche o CubeSuite e tente de novo.");
+      const seen = [...this.access.inputs.values()].map((p) => p.name).join(", ") || "nenhuma porta MIDI";
+      throw new Error(`Pedal não encontrado (o Chrome viu: ${seen}). Ligue o cabo USB (OTG), feche o CubeSuite e tente de novo.`);
     }
   }
 
