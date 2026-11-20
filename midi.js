@@ -107,8 +107,10 @@ export class CubeLink extends EventTarget {
     return (
       list.find((p) => /cube[\s-]*baby/i.test(p.name || "")) ||
       list.find((p) => /m-?vave|cuvave|sinco/i.test(`${p.manufacturer} ${p.name}`)) ||
-      // o driver genérico do Windows chama a porta de "USB-Midi"; a identidade é conferida depois
-      (list.length === 1 && /usb[\s-]*midi/i.test(list[0].name || "") ? list[0] : null)
+      // nomes genéricos do driver do sistema (Windows: "USB-Midi"; Android: "USB2.0 Device"/Smartlink).
+      // A identidade do aparelho é conferida depois da conexão.
+      list.find((p) => /smartlink|usb[\s-]*midi|usb\s*2\.0\s*device/i.test(`${p.manufacturer} ${p.name}`)) ||
+      null
     );
   }
 
