@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101216">
+<title>Baby Pocket</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>Baby Pocket</h1>
+      <p id="status" class="status" role="status">Desconectado</p>
+    </div>
+  </div>
+  <button id="connectBtn" class="chip chip-main" type="button">Conectar pedal</button>
+</header>
+
+<main>
+  <!-- EDITOR -->
+  <section id="tab-editor" class="tab active" aria-label="Editor">
+    <div class="actions">
+      <button id="undoBtn" class="chip" type="button" disabled>Desfazer</button>
+      <button id="redoBtn" class="chip" type="button" disabled>Refazer</button>
+      <button id="compareBtn" class="chip" type="button">Comparar</button>
+      <button id="copyBtn" class="chip" type="button">Copiar para…</button>
+      <button id="renameBtn" class="chip" type="button">Nomear</button>
+    </div>
+
+    <div class="groups">
+    <div class="group g-vol">
+      <div class="group-head"><h2>Master</h2></div>
+      <div class="knobs" data-params="volume"></div>
+    </div>
+    <div class="group g-ir" data-section="irSection">
+      <div class="group-head"><h2>IR · Reverb</h2><button class="toggle" data-toggle="irSection" type="button" aria-pressed="true">ON</button></div>
+      <div class="knobs" data-params="cabinet,reverb"></div>
+    </div>
+    <div class="group g-delay" data-section="delaySection">
+      <div class="group-head"><h2>Delay · Mod</h2><button class="toggle" data-toggle="delaySection" type="button" aria-pressed="true">ON</button></div>
+      <div class="knobs" data-params="mix,feedback,time,modulation"></div>
+      <div class="tempo" aria-label="Tempo do delay">
+        <span class="tempo-bpm"><b id="bpmVal">120</b> BPM</span>
+        <div class="seg seg-sm" id="noteSeg">
+          <button data-note="1/4" type="button">1/4</button>
+          <button data-note="1/8d" class="on" type="button">1/8.</button>
+          <button data-note="1/8" type="button">1/8</button>
+          <button data-note="1/16" type="button">1/16</button>
+        </div>
+        <small id="tempoMs">—</small>
+      </div>
+    </div>
+    <div class="group g-tone" data-section="toneSection">
+      <div class="group-head"><h2>Tom · Amp</h2><button class="toggle" data-toggle="toneSection" type="button" aria-pressed="true">ON</button></div>
+      <div class="knobs" data-params="tone,gain,type"></div>
+    </div>
+    </div>
+  </section>
+
+  <!-- STAGE -->
+  <section id="tab-stage" class="tab" aria-label="Palco">
+    <div class="stage">
+      <p id="stageName" class="stage-title">Palco</p>
+      <div class="stage-slots">
+        <button class="stage-slot" data-slot="0" type="button"><span class="L">A</span><small class="nm"></small></button>
+        <button class="stage-slot" data-slot="1" type="button"><span class="L">B</span><small class="nm"></small></button>
+        <button class="stage-slot" data-slot="2" type="button"><span class="L">C</span><small class="nm"></small></button>
+      </div>
+      <button class="stage-tap" id="stageTap" type="button"><b class="bpm">120</b><small>TAP · BPM do delay</small></button>
+      <p class="muted" id="wakeInfo">A tela fica acesa neste modo.</p>
+    </div>
+  </section>
+
+  <!-- AFINADOR -->
+  <section id="tab-tuner" class="tab" aria-label="Afinador">
+    <div class="panel tuner">
+      <div class="seg" id="tunerMode">
+        <button class="on" data-mode="chromatic" type="button">Cromático</button>
+        <button data-mode="guitar" type="button">Violão/Guitarra</button>
+      </div>
+      <div class="tuner-note"><span id="tNote" class="idle">—</span><small id="tHz">— Hz</small></div>
+      <div class="meter" aria-hidden="true"><i id="tNeedle"></i><b></b></div>
+      <p id="tCents" class="tuner-cents">Toque em “Ligar microfone”</p>
+      <div class="strings" id="tStrings" hidden></div>
+      <div class="row">
+        <label>Entrada <select id="tInput"><option value="">Microfone padrão</option></select></label>
+        <label>A4 <input id="tRef" type="number" min="410" max="470" value="440"></label>
+      </div>
+      <button id="tToggle" class="chip chip-main wide" type="button">Ligar microfone</button>
+    </div>
+  </section>
+
+  <!-- BIBLIOTECA -->
+  <section id="tab-library" class="tab" aria-label="Biblioteca">
+    <div class="panel">
+      <input id="libSearch" class="search" type="search" placeholder="Buscar timbres…">
+      <div class="tags" id="libTags"></div>
+      <ul id="libList" class="list"></ul>
+      <button id="libSave" class="chip chip-main wide" type="button">Salvar timbre do slot A</button>
+      <button id="libImport" class="chip wide" type="button">Importar preset (arquivo)</button>
+      <input id="libFile" type="file" accept=".json,.bpreset,application/json" hidden>
+    </div>
+  </section>
+
+  <!-- PEDAL -->
+  <section id="tab-device" class="tab" aria-label="Pedal">
+    <div class="panel">
+      <h2>Banco A+B+C</h2>
+      <p class="muted">Exporte o banco como arquivo JSON antes de experimentar.</p>
+      <div class="row">
+        <button id="exportBtn" class="chip" type="button">Exportar banco</button>
+        <button id="importBtn" class="chip" type="button">Importar banco</button>
+        <input id="importFile" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="row">
+        <button id="reloadBtn" class="chip" type="button">Reler do pedal</button>
+        <button id="saveAllBtn" class="chip chip-save" type="button">Salvar tudo no pedal</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Backups automáticos</h2>
+      <p class="muted">Guardados neste aparelho antes de cada gravação no pedal.</p>
+      <ul id="backupList" class="list"></ul>
+    </div>
+    <div class="panel safety">
+      <h2>Segurança</h2>
+      <ul class="risk">
+        <li><b>Baixo</b> · knobs ao vivo, trocar slot, afinador. Só RAM, reversível.</li>
+        <li><b>Médio</b> · salvar slot, importar banco. Sobrescreve presets do pedal.</li>
+      </ul>
+      <p class="muted">Esta versão <b>não grava IR (WAV)</b> na memória flash. Produto não oficial, sem garantia. Feche o CubeSuite/CubeControl no PC antes de conectar.</p>
+      <button id="demoBtn" class="chip wide" type="button">Testar em modo demonstração</button>
+    </div>
+  </section>
+</main>
+
+<div id="fineBar" class="fine" hidden>
+  <span id="fineName">Volume</span>
+  <button id="fineMinus" class="step" type="button" aria-label="Diminuir">−</button>
+  <input id="fineRange" type="range" min="0" max="127" step="1">
+  <button id="finePlus" class="step" type="button" aria-label="Aumentar">+</button>
+  <output id="fineVal">0</output>
+</div>
+
+<div class="dock" id="dock" aria-label="Cenas">
+  <div class="scenes">
+    <button class="slot active" data-slot="0" type="button"><span class="L">A</span><small class="nm"></small><i class="dirty" hidden></i></button>
+    <button class="slot" data-slot="1" type="button"><span class="L">B</span><small class="nm"></small><i class="dirty" hidden></i></button>
+    <button class="slot" data-slot="2" type="button"><span class="L">C</span><small class="nm"></small><i class="dirty" hidden></i></button>
+  </div>
+  <button id="tapBtn" class="tap" type="button"><b class="bpm">120</b><small>TAP</small></button>
+  <button id="saveBtn" class="savebtn" type="button">Salvar A</button>
+</div>
+
+<nav class="tabs" aria-label="Seções">
+  <button class="on" data-tab="editor" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="3.2"/><circle cx="17" cy="12" r="3.2"/><path d="M7 5v3M17 5v3"/></svg><span>Rig</span></button>
+  <button data-tab="library" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Presets</span></button>
+  <button data-tab="stage" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Palco</span></button>
+  <button data-tab="tuner" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v10M7 8l5 5 5-5"/><path d="M5 20h14"/></svg><span>Afinador</span></button>
+  <button data-tab="device" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>Ajustes</span></button>
+</nav>
+
+<dialog id="dlg"><form method="dialog"><h3 id="dlgTitle"></h3><div id="dlgBody"></div><div class="dlg-actions" id="dlgActions"></div></form></dialog>
+<div id="toast" class="toast" role="alert" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
