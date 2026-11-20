@@ -1,5 +1,6 @@
 // midi.js — ligação com o pedal via Web MIDI (Chrome no Android, cabo USB-OTG) + pedal de demonstração.
 import * as P from "./protocol.js";
+import { BLE_MIDI_SERVICE, BLE_MIDI_CHAR, packBle, BleUnpacker } from "./blemidi.js";
 
 const TIMEOUT_MS = 1500;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -42,6 +43,7 @@ export class CubeLink extends EventTarget {
     this.input = null;
     this.output = null;
     this.demo = null;
+    this.ble = null;
     this.pending = null;
     this.chain = Promise.resolve();
     this.buffer = [];
@@ -58,6 +60,34 @@ export class CubeLink extends EventTarget {
     this.demo.onMessage((u8) => this.#onBytes(u8));
     this.connected = true;
     this.deviceName = this.demo.name;
+    this.#emit("state", { connected: true, name: this.deviceName });
+  }
+
+  static bleSupported() { return typeof navigator !== "undefined" && "bluetooth" in navigator; }
+
+  /** Experimental: BLE-MIDI. Só funciona se o pedal expuser o serviço MIDI por Bluetooth. */
+  async connectBle() {
+    if (!CubeLink.bleSupported()) throw new Error("Este navegador não tem Web Bluetooth. Use o Chrome (Android ou PC).");
+    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [BLE_MIDI_SERVICE] });
+    let characteristic;
+    try {
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(BLE_MIDI_SERVICE);
+      characteristic = await service.getCharacteristic(BLE_MIDI_CHAR);
+    } catch {
+      try { device.gatt.disconnect(); } catch { /* já desconectado */ }
+      throw new Error(`“${device.name || "Dispositivo"}” não oferece MIDI por Bluetooth. Use o cabo USB.`);
+    }
+    const unpacker = new BleUnpacker();
+    await characteristic.startNotifications();
+    characteristic.addEventListener("characteristicvaluechanged", (e) => {
+      const dv = e.target.value;
+      for (const sysex of unpacker.push(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength))) this.#onBytes(sysex);
+    });
+    device.addEventListener("gattserverdisconnected", () => this.disconnect());
+    this.ble = { device, characteristic };
+    this.connected = true;
+    this.deviceName = device.name || "Bluetooth MIDI";
     this.#emit("state", { connected: true, name: this.deviceName });
   }
 
@@ -99,7 +129,8 @@ export class CubeLink extends EventTarget {
 
   async disconnect() {
     if (this.input) this.input.onmidimessage = null;
-    this.input = this.output = this.demo = null;
+    if (this.ble) { try { this.ble.device.gatt.disconnect(); } catch { /* ok */ } }
+    this.input = this.output = this.demo = this.ble = null;
     this.connected = false;
     this.#emit("state", { connected: false, name: "" });
   }
@@ -122,6 +153,13 @@ export class CubeLink extends EventTarget {
 
   async #send(bytes) {
     if (this.demo) return this.demo.send(bytes);
+    if (this.ble) {
+      for (const packet of packBle(bytes)) {
+        await (this.ble.characteristic.writeValueWithoutResponse?.(packet) ?? this.ble.characteristic.writeValue(packet));
+        await sleep(8);
+      }
+      return;
+    }
     if (!this.output) throw new Error("Pedal desconectado.");
     this.output.send(bytes);
   }

@@ -301,6 +301,10 @@ $("#connectBtn").addEventListener("click", async () => {
   if (state.link.connected) { await state.link.disconnect(); return; }
   try { await state.link.connectUsb(); await afterConnect(); } catch (e) { toast(e.message); }
 });
+$("#bleBtn").addEventListener("click", async () => {
+  if (state.link.connected) return toast("Desconecte primeiro (botão no topo).");
+  try { await state.link.connectBle(); await afterConnect(); } catch (e) { if (e.name !== "NotFoundError") toast(e.message); }
+});
 $("#demoBtn").addEventListener("click", async () => { await state.link.connectDemo(); await afterConnect(); toast("Modo demonstração: nada é enviado a um pedal real.", true); });
 
 // ---------- gravar no pedal ----------
